@@ -35,11 +35,7 @@ xref:
 	@$(REBAR3) as development xref
 
 test:
-	@$(REBAR3) as $(TEST_PROFILE) eunit, ct
-	@if [ "$(TEST_PROFILE)" != "travis_test" ]; then \
-		make -C elixir_tests; \
-		rm -rf ebin; \
-	fi
+	@$(REBAR3) as $(TEST_PROFILE) ct
 
 cover: test
 	@$(REBAR3) as test cover

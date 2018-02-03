@@ -1,4 +1,4 @@
-%% Copyright (c) 2017 Guilherme Andrade <backwater@gandrade.net>
+%% Copyright (c) 2017 Guilherme Andrade <rebar3_backwater@gandrade.net>
 %%
 %% Permission is hereby granted, free of charge, to any person obtaining a
 %% copy  of this software and associated documentation files (the "Software"),
@@ -19,7 +19,7 @@
 %% DEALINGS IN THE SOFTWARE.
 
 %% @private
--module(backwater_rebar3_prv_generate).
+-module(rebar3_backwater_prv_generate).
 
 %% ------------------------------------------------------------------
 %% API Function Exports
@@ -53,7 +53,7 @@
 -spec init(rebar_state:t()) -> {ok, rebar_state:t()}.
 init(State) ->
     Example =
-        backwater_util:iodata_to_list(
+        rebar3_backwater_util:iodata_to_list(
           io_lib:format("rebar3 ~s ~s", [?NAMESPACE, ?PROVIDER])),
 
     Provider =
@@ -71,7 +71,7 @@ init(State) ->
 
 -spec do(rebar_state:t()) -> {ok, rebar_state:t()} | {error, {?MODULE, term()}}.
 do(State) ->
-    case backwater_rebar3_generator:generate(State) of
+    case rebar3_backwater_generator:generate(State) of
         ok -> {ok, State};
         {error, Error} ->
             {error, {?MODULE, Error}}

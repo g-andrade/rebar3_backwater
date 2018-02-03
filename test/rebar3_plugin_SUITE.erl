@@ -32,10 +32,11 @@ groups() ->
     [{individual_tests, [sequence, shuffle], all_individual_tests()}].
 
 init_per_group(_Name, Config) ->
-    {ok, _} = application:ensure_all_started(backwater),
+    {ok, _} = application:ensure_all_started(rebar3_backwater),
     Config.
 
 end_per_group(_Name, Config) ->
+    _ = application:stop(rebar3_backwater),
     _ = application:stop(backwater),
     _ = application:stop(cowboy),
     Config.
@@ -91,28 +92,28 @@ whole_module_presuming_attributes_test(_Config) ->
 current_app_module_test(_Config) ->
     ?assertOk(
        with_ref(
-         [{backwater_util, [{exports, all}]}],
+         [{rebar3_backwater_util, [{exports, all}]}],
          fun () ->
-                 ExportedFunctions = exported_functions(backwater_util),
+                 ExportedFunctions = exported_functions(rebar3_backwater_util),
                  ?assertEqual(
                     ExportedFunctions,
-                    exported_functions(rpc_backwater_util)),
+                    exported_functions(rpc_rebar3_backwater_util)),
 
                  ?assertEqual(
-                    {ok, backwater_util:latin1_binary_to_lower(<<"Hello">>)},
-                    rpc_backwater_util:latin1_binary_to_lower(<<"Hello">>))
+                    {ok, rebar3_backwater_util:copies(<<"Hello">>, 3)},
+                    rpc_rebar3_backwater_util:copies(<<"Hello">>, 3))
          end,
          [{output_src_dir, filename:join(source_directory(), "..")}])).
 
 current_app_module_presuming_attributes_test(_Config) ->
     ?assertOk(
        with_ref(
-         [backwater_util],
+         [rebar3_backwater_util],
          fun () ->
                  % no attributes, so no functions are to be exported
                  ?assertEqual(
                     [],
-                    exported_functions(rpc_backwater_util))
+                    exported_functions(rpc_rebar3_backwater_util))
          end,
          [{output_src_dir, filename:join(source_directory(), "..")}])).
 
@@ -134,7 +135,7 @@ unloaded_application_test(_Config) ->
 
 missing_application_test(_Config) ->
     ?assertMatch(
-       {error, {backwater_rebar3_prv_generate, {unable_to_load_application, _}}},
+       {error, {rebar3_backwater_prv_generate, {unable_to_load_application, _}}},
        with_ref(
          [{some_made_up, application}],
          fun () -> error(not_supposed_to_run) end,
@@ -142,7 +143,7 @@ missing_application_test(_Config) ->
 
 missing_module_test(_Config) ->
     ?assertMatch(
-       {error, {backwater_rebar3_prv_generate,
+       {error, {rebar3_backwater_prv_generate,
                 {{beam_lib, {file_error, _, enoent}}, some_made_up_module}}},
        with_ref(
          [{stdlib, some_made_up_module}],
@@ -151,7 +152,7 @@ missing_module_test(_Config) ->
 
 module_packed_in_escript_test(_Config) ->
     ?assertMatch(
-       {error, {backwater_rebar3_prv_generate,
+       {error, {rebar3_backwater_prv_generate,
                 {{beam_lib, {file_error, _ModulePath, enotdir}}, rebar_app_info}}},
        with_ref(
          [{rebar, rebar_app_info}],
@@ -211,7 +212,7 @@ compare_original_and_rpc_calls(Module, RpcModule, Function, Args) ->
 with_ref(Targets, Fun, ExtraOpts) ->
     Ref = rand:uniform(1 bsl 64),
     try
-        backwater_util:with_success(
+        rebar3_backwater_util:with_success(
           Fun,
           generate_and_load(Ref, Targets, ExtraOpts))
     after
@@ -292,8 +293,8 @@ generate_and_load_code_with_opts(OptsList, Outputdirectory) ->
     Opts = dict:from_list(OptsList),
     RebarAppInfo2 = rebar_app_info:opts(RebarAppInfo1, Opts),
     RebarState2 = rebar_state:current_app(RebarState1, RebarAppInfo2),
-    {ok, RebarState3} = backwater_rebar3_prv_generate:init(RebarState2),
-    backwater_util:with_success(
+    {ok, RebarState3} = rebar3_backwater_prv_generate:init(RebarState2),
+    rebar3_backwater_util:with_success(
       fun (_RebarState4) ->
               lists:foreach(
                 fun (TargetModule) ->
@@ -306,7 +307,7 @@ generate_and_load_code_with_opts(OptsList, Outputdirectory) ->
                 end,
                 TargetModules)
       end,
-      backwater_rebar3_prv_generate:do(RebarState3)).
+      rebar3_backwater_prv_generate:do(RebarState3)).
 
 all_individual_tests() ->
     [Name || {Name, 1} <- exported_functions(),

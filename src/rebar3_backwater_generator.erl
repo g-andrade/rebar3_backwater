@@ -1,4 +1,4 @@
-%% Copyright (c) 2017 Guilherme Andrade <backwater@gandrade.net>
+%% Copyright (c) 2017 Guilherme Andrade <rebar3_backwater@gandrade.net>
 %%
 %% Permission is hereby granted, free of charge, to any person obtaining a
 %% copy  of this software and associated documentation files (the "Software"),
@@ -18,10 +18,7 @@
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 %% DEALINGS IN THE SOFTWARE.
 
--module(backwater_rebar3_generator).
-
--include("backwater_common.hrl").
--include("backwater_module_info.hrl").
+-module(rebar3_backwater_generator).
 
 %% ------------------------------------------------------------------
 %% API Function Exports
@@ -39,6 +36,8 @@
 -define(DEFAULT_PARAM_NAME_PREFIX, "rpc_").
 -define(DEFAULT_PARAM_OUTPUT_DIRECTORY__SUBDIR, "rpc").
 -define(DUMMY_LINE_NUMBER, (erl_anno:from_term(1))).
+
+-define(OPAQUE_BINARY(B), <<(B)/binary>>). % don't let Dialyzer be too smart
 
 %% ------------------------------------------------------------------
 %% Type Definitions
@@ -131,7 +130,7 @@ generate(State) ->
           dict:new(),
           AppInfos ++ rebar_state:all_deps(State)),
 
-    backwater_util:lists_foreach_until_error(
+    rebar3_backwater_util:lists_foreach_until_error(
       fun (AppInfo) ->
               generate(AppInfo, SourceDirectoriesPerApp)
       end,
@@ -167,19 +166,19 @@ generate(CurrentAppInfo, SourceDirectoriesPerApp, {ok, BackwaterOpts}) ->
           fun (Module) when is_atom(Module) ->
                   {CurrentAppName, Module, GlobalTargetOpts};
               ({Module, Opts}) when is_atom(Module), is_list(Opts) ->
-                  MergedOpts = backwater_util:proplists_sort_and_merge(GlobalTargetOpts, Opts),
+                  MergedOpts = rebar3_backwater_util:proplists_sort_and_merge(GlobalTargetOpts, Opts),
                   {CurrentAppName, Module, MergedOpts};
               ({AppName, Module}) when is_atom(AppName), is_atom(Module) ->
                   {AppName, Module, GlobalTargetOpts};
               ({AppName, Module, Opts}) when is_atom(AppName), is_atom(Module), is_list(Opts) ->
-                  MergedOpts = backwater_util:proplists_sort_and_merge(GlobalTargetOpts, Opts),
+                  MergedOpts = rebar3_backwater_util:proplists_sort_and_merge(GlobalTargetOpts, Opts),
                   {AppName, Module, MergedOpts}
           end,
           UnprocessedTargets),
 
-    backwater_util:lists_foreach_until_error(
+    rebar3_backwater_util:lists_foreach_until_error(
       fun ({AppName, Module, TargetOpts}) ->
-              backwater_util:with_success(
+              rebar3_backwater_util:with_success(
                 fun (GenerationParams1) ->
                         GenerationParams2 =
                             GenerationParams1#{
@@ -193,7 +192,7 @@ generate(CurrentAppInfo, SourceDirectoriesPerApp, {ok, BackwaterOpts}) ->
 
 -spec generate_backwater_code(generation_params()) -> ok | {error, term()}.
 generate_backwater_code(GenerationParams) ->
-    backwater_util:with_success(
+    rebar3_backwater_util:with_success(
       fun (ModulePath, Forms) ->
               ParseResult = lists:foldl(fun parse_module/2, dict:new(), Forms),
               ModuleInfo = generate_module_info(ModulePath, ParseResult),
@@ -236,9 +235,9 @@ find_module_name_or_path(AppName, Module, SourceDirectoriesPerApp) ->
 find_module_path(Module, SourceDirectories) ->
     ModuleStr = atom_to_list(Module),
     MaybeSourceDirectoriesWithFiles =
-        backwater_util:lists_map_until_error(
+        rebar3_backwater_util:lists_map_until_error(
           fun (SourceDirectory) ->
-                  backwater_util:with_success(
+                  rebar3_backwater_util:with_success(
                     fun (SourceFiles) ->
                             {ok, {SourceDirectory, SourceFiles}}
                     end,
@@ -246,13 +245,13 @@ find_module_path(Module, SourceDirectories) ->
           end,
           SourceDirectories),
 
-    backwater_util:with_success(
+    rebar3_backwater_util:with_success(
       fun (SourceDirectoriesWithFiles) ->
               SearchResult =
-                backwater_util:lists_anymap(
+                rebar3_backwater_util:lists_anymap(
                   fun ({SourceDirectory, SourceFiles}) ->
                           ExpectedPrefix = filename:join(SourceDirectory, ModuleStr) ++ ".",
-                          backwater_util:lists_anymap(
+                          rebar3_backwater_util:lists_anymap(
                             fun (SourceFile) ->
                                     length(SourceFile) =:= length(ExpectedPrefix) + 3
                                     andalso lists:prefix(ExpectedPrefix, SourceFile)
@@ -428,7 +427,8 @@ transform_exports(GenerationParams, ModuleInfo1) ->
             use_backwater_attributes -> sets:intersection(Exports1, BackwaterExports);
             List when is_list(List) -> sets:intersection(Exports1, sets:from_list(List))
         end,
-    Exports3 = sets:subtract(Exports2, sets:from_list(?METADATA_EXPORT_LIST)),
+    MetadataExportList = backwater_module_info:metadata_export_list(),
+    Exports3 = sets:subtract(Exports2, sets:from_list(MetadataExportList)),
     ModuleInfo2#{ exports := Exports3 }.
 
 -spec trim_deprecation_attributes(module_info()) -> module_info().
@@ -549,7 +549,7 @@ externalize_function_specs_user_types(GenerationParams, ModuleInfo1) ->
     #{ function_specs := FunctionSpecs1 } = ModuleInfo1,
     Acc1 = ModuleInfo1#{ missing_types_messages => sets:new() },
     {FunctionSpecs2, Acc2} =
-        backwater_util:maps_mapfold(
+        rebar3_backwater_util:maps_mapfold(
           fun externalize_function_spec_definitions_user_types/3,
           Acc1,
           FunctionSpecs1),
@@ -782,7 +782,7 @@ wrap_function_spec_return_types({type, Line, bounded_fun, [FunSpec, Constraints]
 
 generic_function_spec(Arity) ->
     TermType = {type, ?DUMMY_LINE_NUMBER, term, []},
-    ArgSpecs = {type, ?DUMMY_LINE_NUMBER, product, backwater_util:copies(TermType, Arity)},
+    ArgSpecs = {type, ?DUMMY_LINE_NUMBER, product, rebar3_backwater_util:copies(TermType, Arity)},
     ReturnSpec = wrap_return_type(TermType),
     {type, ?DUMMY_LINE_NUMBER, 'fun', [ArgSpecs, ReturnSpec]}.
 
@@ -820,7 +820,7 @@ generate_module_source_indexed_var_lists(Definitions) ->
     IndexedVarListsDict =
         lists:foldl(
           fun (#{ vars := Vars }, AccA) ->
-                  EnumeratedVars = backwater_util:lists_enumerate(Vars),
+                  EnumeratedVars = rebar3_backwater_util:lists_enumerate(Vars),
                   lists:foldl(
                     fun ({Index, Var}, AccB) ->
                             orddict:append(Index, Var, AccB)
