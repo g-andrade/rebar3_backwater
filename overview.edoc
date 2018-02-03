@@ -1,9 +1,9 @@
 <!-- vim: set spell spelllang=en_gb: -->
-@title backwater
+@title rebar3_backwater
 @doc
 
-[![Build Status](https://travis-ci.org/g-andrade/backwater.png?branch=master)](https://travis-ci.org/g-andrade/backwater)
-[![Hex pm](http://img.shields.io/hexpm/v/backwater.svg?style=flat)](https://hex.pm/packages/backwater)
+[![Build Status](https://travis-ci.org/g-andrade/rebar3_backwater.png?branch=master)](https://travis-ci.org/g-andrade/rebar3_backwater)
+[![Hex pm](http://img.shields.io/hexpm/v/rebar3_backwater.svg?style=flat)](https://hex.pm/packages/rebar3_backwater)
 
 ==== Backwater - Intercluster RPC for Erlang and Elixir ====
 

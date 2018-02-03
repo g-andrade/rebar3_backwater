@@ -1,9 +1,9 @@
 
 
-# backwater #
+# rebar3_backwater #
 
-[![Build Status](https://travis-ci.org/g-andrade/backwater.png?branch=master)](https://travis-ci.org/g-andrade/backwater)
-[![Hex pm](http://img.shields.io/hexpm/v/backwater.svg?style=flat)](https://hex.pm/packages/backwater)
+[![Build Status](https://travis-ci.org/g-andrade/rebar3_backwater.png?branch=master)](https://travis-ci.org/g-andrade/rebar3_backwater)
+[![Hex pm](http://img.shields.io/hexpm/v/rebar3_backwater.svg?style=flat)](https://hex.pm/packages/rebar3_backwater)
 
 <h5><a name="Backwater_-_Intercluster_RPC_for_Erlang_and_Elixir">Backwater - Intercluster RPC for Erlang and Elixir</a></h5>
 

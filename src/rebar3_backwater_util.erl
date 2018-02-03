@@ -1,4 +1,4 @@
-%% Copyright (c) 2017 Guilherme Andrade <rebar3_backwater@gandrade.net>
+%% Copyright (c) 2018 Guilherme Andrade <rebar3_backwater@gandrade.net>
 %%
 %% Permission is hereby granted, free of charge, to any person obtaining a
 %% copy  of this software and associated documentation files (the "Software"),
