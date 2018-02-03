@@ -414,12 +414,6 @@ secret = :crypto.strong_rand_bytes(32)
 
 
 <table width="100%" border="0" summary="list of modules">
-<tr><td><a href="backwater_client.md" class="module">backwater_client</a></td></tr>
-<tr><td><a href="backwater_cowboy_handler.md" class="module">backwater_cowboy_handler</a></td></tr>
-<tr><td><a href="backwater_http_request.md" class="module">backwater_http_request</a></td></tr>
-<tr><td><a href="backwater_http_response.md" class="module">backwater_http_response</a></td></tr>
-<tr><td><a href="backwater_http_signatures.md" class="module">backwater_http_signatures</a></td></tr>
-<tr><td><a href="backwater_module_info.md" class="module">backwater_module_info</a></td></tr>
-<tr><td><a href="backwater_server.md" class="module">backwater_server</a></td></tr>
-<tr><td><a href="backwater_util.md" class="module">backwater_util</a></td></tr></table>
+<tr><td><a href="rebar3_backwater_generator.md" class="module">rebar3_backwater_generator</a></td></tr>
+<tr><td><a href="rebar3_backwater_util.md" class="module">rebar3_backwater_util</a></td></tr></table>
 
