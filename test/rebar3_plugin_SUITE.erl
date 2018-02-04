@@ -222,7 +222,7 @@ with_ref(Targets, Fun, ExtraOpts) ->
 generate_and_load(Ref, Targets, ExtraOpts) ->
     % client
     Secret = crypto:strong_rand_bytes(32),
-    ok = backwater_client:start(Ref, #{ endpoint => <<"http://localhost:8080">>, secret => Secret }),
+    Endpoint = {<<"http://localhost:8080">>, Secret},
 
     % server
     ExposedModules =
@@ -238,17 +238,20 @@ generate_and_load(Ref, Targets, ExtraOpts) ->
           end,
           Targets),
 
-    {ok, _Pid} = backwater_server:start_clear(
-                   Ref, #{ secret => Secret, exposed_modules => ExposedModules,
-                           return_exception_stacktraces => true },
-                   [{port, 8080}], []),
+    {ok, _Pid} = backwater:start_clear_server(
+                   Ref, Secret, ExposedModules,
+                   #{ transport => [{port, 8080}],
+                      backwater =>
+                        #{ return_exception_stacktraces => true }
+                    }),
 
     OutputDirectory = proplists:get_value(output_src_dir, ExtraOpts, source_directory()),
     SourceDirectories = proplists:get_value(src_dirs, ExtraOpts),
     % code
     Opts =
         [{backwater_gen,
-          [{client_ref, Ref},
+          [{call_endpoint, Endpoint},
+           {call_options, #{}},
            {output_src_dir, OutputDirectory}
            | [{target, Target} || Target <- Targets]]
          },
@@ -258,8 +261,7 @@ generate_and_load(Ref, Targets, ExtraOpts) ->
 
 
 stop(Ref) ->
-    ok = backwater_server:stop_listener(Ref),
-    ok = backwater_client:stop(Ref).
+    ok = backwater:stop_server(Ref).
 
 generate_and_load_code_with_opts(OptsList, Outputdirectory) ->
     {backwater_gen, BackwaterOpts} = lists:keyfind(backwater_gen, 1, OptsList),

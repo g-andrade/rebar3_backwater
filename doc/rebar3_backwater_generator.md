@@ -24,7 +24,7 @@ opt() = {target, <a href="#type-target">target()</a>} | <a href="#type-overridab
 
 
 <pre><code>
-overridable_opt() = {client_ref, term()} | {module_name_prefix, <a href="file.md#type-name_all">file:name_all()</a>} | {module_name_suffix, <a href="file.md#type-name_all">file:name_all()</a>} | {unexported_types, ignore | warn | error | abort} | {output_src_dir, <a href="file.md#type-name_all">file:name_all()</a>}
+overridable_opt() = {call_endpoint, <a href="backwater_request.md#type-endpoint">backwater_request:endpoint()</a>} | {call_options, <a href="backwater.md#type-call_opts">backwater:call_opts()</a>} | {module_name_prefix, <a href="file.md#type-name_all">file:name_all()</a>} | {module_name_suffix, <a href="file.md#type-name_all">file:name_all()</a>} | {unexported_types, ignore | warn | error | abort} | {output_src_dir, <a href="file.md#type-name_all">file:name_all()</a>}
 </code></pre>
 
 

@@ -1,10 +1,11 @@
 {application, rebar3_backwater,
- [{description, "Client RPC boilerplate generator for Backwater"},
+ [{description, "RPC boilerplate generator for Backwater"},
   {vsn, git},
   {registered, []},
   {applications,
    [kernel,
     stdlib,
+    % external dependencies
     backwater
    ]},
   {env,[]},

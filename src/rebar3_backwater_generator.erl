@@ -30,12 +30,13 @@
 %% Macro Definitions
 %% ------------------------------------------------------------------
 
--define(DEFAULT_PARAM_CLIENT_REF, default).
 -define(DEFAULT_PARAM_EXPORTS, use_backwater_attributes).
 -define(DEFAULT_PARAM_UNEXPORTED_TYPES, warn).
 -define(DEFAULT_PARAM_NAME_PREFIX, "rpc_").
 -define(DEFAULT_PARAM_OUTPUT_DIRECTORY__SUBDIR, "rpc").
 -define(DUMMY_LINE_NUMBER, (erl_anno:from_term(1))).
+
+-define(DEFAULT_ENDPOINT, <<"http://localhost:8080/">>).
 
 -define(OPAQUE_BINARY(B), <<(B)/binary>>). % don't let Dialyzer be too smart
 
@@ -70,7 +71,8 @@
 -export_type([target_exports/0]).
 
 -type overridable_opt() ::
-        {client_ref, term()} | % 'default' by default
+        {call_endpoint, backwater_request:endpoint()} |
+        {call_options, backwater:call_opts()} |
         {module_name_prefix, file:name_all()} | % "rpc_" by default
         {module_name_suffix, file:name_all()} | % "" by default
         {unexported_types, ignore | warn | error | abort} | % warn by default
@@ -427,7 +429,7 @@ transform_exports(GenerationParams, ModuleInfo1) ->
             use_backwater_attributes -> sets:intersection(Exports1, BackwaterExports);
             List when is_list(List) -> sets:intersection(Exports1, sets:from_list(List))
         end,
-    MetadataExportList = backwater_module_info:metadata_export_list(),
+    MetadataExportList = backwater_module_exposure:metadata_export_list(),
     Exports3 = sets:subtract(Exports2, sets:from_list(MetadataExportList)),
     ModuleInfo2#{ exports := Exports3 }.
 
@@ -492,21 +494,18 @@ rename_module(GenerationParams, ModuleInfo) ->
 
 -spec write_module(generation_params(), module_info()) -> ok | {error, term()}.
 write_module(GenerationParams, ModuleInfo) ->
-    ClientRef = target_client_ref(GenerationParams),
+    #{ target_opts := TargetOpts } = GenerationParams,
+    CallEndpoint = proplists:get_value(call_endpoint, TargetOpts, ?DEFAULT_ENDPOINT),
+    CallOptions = proplists:get_value(call_options, TargetOpts, #{}),
     OutputDirectory = target_output_directory(GenerationParams),
     ok = ensure_directory_exists(OutputDirectory),
     #{ module := Module } = ModuleInfo,
     ModuleFilename = filename:join(OutputDirectory, atom_to_list(Module) ++ ".erl"),
-    ModuleSrc = generate_module_source(ClientRef, ModuleInfo),
+    ModuleSrc = generate_module_source(CallEndpoint, CallOptions, ModuleInfo),
     case file:write_file(ModuleFilename, ModuleSrc) of
         ok -> ok;
         {error, Error} -> {error, {couldnt_save_module, Error}}
     end.
-
--spec target_client_ref(generation_params()) -> term().
-target_client_ref(GenerationParams) ->
-    #{ target_opts := TargetOpts } = GenerationParams,
-    proplists:get_value(client_ref, TargetOpts, ?DEFAULT_PARAM_CLIENT_REF).
 
 -spec target_output_directory(generation_params()) -> file:name_all().
 target_output_directory(GenerationParams) ->
@@ -679,12 +678,13 @@ missing_type_msg_function(abort) ->
 %% ------------------------------------------------------------------
 
 %-spec generate_module_source(term(), module_info()) -> iolist().
-generate_module_source(ClientRef, ModuleInfo) ->
+generate_module_source(CallEndpoint, CallOptions, ModuleInfo) ->
     Header = generate_module_source_header(ModuleInfo),
     Exports = generate_module_source_exports(ModuleInfo),
     XRefAttributes = generate_module_source_xref_attributes(ModuleInfo),
     FunctionSpecs = generate_module_source_function_specs(ModuleInfo),
-    FunctionDefinitions = generate_module_source_function_definitions(ClientRef, ModuleInfo),
+    FunctionDefinitions =
+        generate_module_source_function_definitions(CallEndpoint, CallOptions, ModuleInfo),
 
     [Header,
      generate_module_source_section("Exports", Exports),
@@ -761,14 +761,17 @@ generate_module_source_function_spec({Name, Arity}, ModuleInfo) ->
         end,
     erl_pp:attribute(Attribute).
 
--spec generate_module_source_function_definitions(term(), module_info()) -> [iolist()].
-generate_module_source_function_definitions(ClientRef, ModuleInfo) ->
+-spec generate_module_source_function_definitions(backwater_request:endpoint(),
+                                                  backwater:call_opts(),
+                                                  module_info()) -> [iolist()].
+generate_module_source_function_definitions(CallEndpoint, CallOptions, ModuleInfo) ->
     #{ function_definitions := FunctionDefinitions } = ModuleInfo,
     FunctionDefinitionsList = lists:keysort(1, maps:to_list(FunctionDefinitions)),
     List =
         lists:map(
           fun (FunctionDefinitionKV) ->
-                  generate_module_source_function(ClientRef, FunctionDefinitionKV, ModuleInfo)
+                  generate_module_source_function(CallEndpoint, CallOptions,
+                                                  FunctionDefinitionKV, ModuleInfo)
           end,
           FunctionDefinitionsList),
     lists:join("\n", List).
@@ -791,18 +794,17 @@ wrap_return_type(OriginalType) ->
         {type, ?DUMMY_LINE_NUMBER, tuple,
          [{atom, ?DUMMY_LINE_NUMBER, ok}, OriginalType]},
     ErrorValueSpec =
-        {remote_type, ?DUMMY_LINE_NUMBER,
-         [{atom, ?DUMMY_LINE_NUMBER, backwater_client},
-          {atom, ?DUMMY_LINE_NUMBER, error},
-          []]},
+        {type, ?DUMMY_LINE_NUMBER, term, []},
     ErrorSpec =
         {type, ?DUMMY_LINE_NUMBER, tuple,
          [{atom, ?DUMMY_LINE_NUMBER, error}, ErrorValueSpec]},
     {type, ?DUMMY_LINE_NUMBER, union, [SuccessSpec, ErrorSpec]}.
 
--spec generate_module_source_function(term(), {name_arity(), [function_definition()]}, module_info())
+-spec generate_module_source_function(backwater_request:endpoint(),
+                                      backwater:call_opts(),
+                                      {name_arity(), [function_definition()]}, module_info())
         -> iolist().
-generate_module_source_function(ClientRef, {{Name, Arity}, Definitions}, ModuleInfo) ->
+generate_module_source_function(CallEndpoint, CallOptions, {{Name, Arity}, Definitions}, ModuleInfo) ->
     #{ original_module := OriginalModule } = ModuleInfo,
     IndexedVarLists = generate_module_source_indexed_var_lists(Definitions),
     ArgNames = generate_module_source_arg_names(Arity, IndexedVarLists),
@@ -810,7 +812,7 @@ generate_module_source_function(ClientRef, {{Name, Arity}, Definitions}, ModuleI
     ArgVars = [{var, ?DUMMY_LINE_NUMBER, list_to_atom(StringName)} || StringName <- UniqueArgNames],
     Guards = [],
     Body = generate_module_source_function_body(
-             ClientRef, OriginalModule, Name, ArgVars),
+             CallEndpoint, CallOptions, OriginalModule, Name, ArgVars),
     Clause = {clause, ?DUMMY_LINE_NUMBER, ArgVars, Guards, Body},
     erl_pp:function({function, ?DUMMY_LINE_NUMBER, Name, Arity, [Clause]}).
 
@@ -916,19 +918,21 @@ generate_module_source_unique_arg_names(Arity, ArgNames) ->
             generate_module_source_unique_arg_names(Arity, MappedArgNames)
     end.
 
-generate_module_source_function_body(ClientRef, OriginalModule, Name, ArgVars) ->
-    [fully_qualified_call_clause(ClientRef, OriginalModule, Name, ArgVars)].
+generate_module_source_function_body(CallEndpoint, CallOptions, OriginalModule, Name, ArgVars) ->
+    [fully_qualified_call_clause(CallEndpoint, CallOptions, OriginalModule, Name, ArgVars)].
 
-fully_qualified_call_clause(ClientRef, OriginalModule, Name, ArgVars) ->
+fully_qualified_call_clause(CallEndpoint, CallOptions, OriginalModule, Name, ArgVars) ->
     Call =
         {remote, ?DUMMY_LINE_NUMBER,
-         {atom, ?DUMMY_LINE_NUMBER, backwater_client},
+         {atom, ?DUMMY_LINE_NUMBER, backwater},
          {atom, ?DUMMY_LINE_NUMBER, call}},
     Args =
-        [erl_syntax:revert( erl_syntax:abstract(ClientRef) ),
+        [erl_syntax:revert( erl_syntax:abstract(CallEndpoint) ),
          {atom, ?DUMMY_LINE_NUMBER, OriginalModule},
          {atom, ?DUMMY_LINE_NUMBER, Name},
-         fully_qualified_call_clause_args(ArgVars)],
+         fully_qualified_call_clause_args(ArgVars),
+         erl_syntax:revert( erl_syntax:abstract(CallOptions) )
+        ],
     {call, ?DUMMY_LINE_NUMBER, Call, Args}.
 
 fully_qualified_call_clause_args([]) ->

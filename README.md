@@ -10,6 +10,8 @@
 
 With `rebar3_backwater`, using `backwater` becomes easier.
 
+*WORK IN PROGRESS*.
+
 
 #### <a name="Usage">Usage</a> ####
 
@@ -28,10 +30,12 @@ In `rebar.config`:
 
 ```erlang
 
+
 {backwater_gen,
- [{client_ref, example},
+ [{call_endpoint, {"http://localhost:8080/", <<"SECRET">>}},
   {target, {stdlib, string, [{exports,all}]}}
  ]}.
+
 
 ```
 
@@ -54,6 +58,7 @@ remotely called.
 <h5><a name="Requirements">Requirements</a></h5>
 * Erlang/OTP 19 or higher
 * rebar3
+* backwater 3.x
 
 
 ## Modules ##
