@@ -10,7 +10,8 @@
 
 With `rebar3_backwater`, using `backwater` becomes easier.
 
-*WORK IN PROGRESS*.
+
+### <a name="WORK_IN_PROGRESS,_UNSTABLE">WORK IN PROGRESS, UNSTABLE</a> ###
 
 
 #### <a name="Usage">Usage</a> ####
